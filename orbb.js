@@ -65,7 +65,7 @@ if (!values.strategy) {
 }
 log.debug(`Strategy: ${values.strategy}`)
 
-const strategyPackages = getPackagesWithStrategy(values.strategy, values.package)
+const strategyPackages = getPackagesWithStrategy(values.strategy, values.package, log)
 if (!strategyPackages) {
     log.error('Unknown or missing strategy')
     process.exit(1)
