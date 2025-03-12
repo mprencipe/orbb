@@ -1,6 +1,6 @@
 import { parseArgs } from 'util'
 import {getPackageNames} from './registry/index.js'
-import {getPackagesWithStrategy} from './strategy/index.js'
+import {getStrategy} from './strategy/index.js'
 import {createLogger} from './log.js'
 
 const BANNER = `
@@ -12,7 +12,6 @@ const BANNER = `
 +#+    +#+ +#+    +#+ +#+    +#+ +#+    +#+
 #+#    #+# #+#    #+# #+#    #+# #+#    #+#
  ########  ###    ### #########  #########
-
  `
 
 console.log(BANNER)
@@ -32,6 +31,7 @@ const opts = {
         strategy: {
             type: 'string',
             short: 's',
+            multiple: true,
             description: 'Permutation strategy: currently only "bitflip"',
         },
         verbose: {
@@ -59,29 +59,33 @@ if (!packages) {
     log.debug('No package registry specified')
 }
 
-if (!values.strategy) {
+if (!values.strategy.length) {
     log.error('Please provide a strategy with the -s flag')
     process.exit(1)
 }
 log.debug(`Strategy: ${values.strategy}`)
 
-const strategyPackages = getPackagesWithStrategy(values.strategy, values.package, log)
-if (!strategyPackages) {
-    log.error('Unknown or missing strategy')
-    process.exit(1)
-}
+const strategies = values.strategy.map(s => ({name: s, fn: getStrategy(s, log)}))
+const allStrategyPackages = strategies.reduce((acc, s) => {
+    if (!s.fn) {
+        log.error(`Unknown or missing strategy ${s.name}`)
+        process.exit(1)
+    }
+    acc[s.name] = s.fn(values.package)
+    return acc
+}, {})
+
 if (values.registry) {
-    log.info(`Found packages in registry "${values.registry}" using strategy "${values.strategy}":`)
-    // find all packages in packages array that are in foundPackages
-    const strategyPackagesSet = new Set(strategyPackages)
-    packages.forEach((pkg) => {
-        if (strategyPackagesSet.has(pkg)) {
-            log.info(pkg)
-        }
-    })
+    for (const [strategy, strategyPackages] of Object.entries(allStrategyPackages)) {
+        const strategyPackagesSet = new Set(strategyPackages)
+        const foundPackages = packages.filter((pkg) => strategyPackagesSet.has(pkg))
+        const printPackages = foundPackages.length ? foundPackages.join('\n') : '-'
+        log.info(`Found packages in registry "${values.registry}" using strategy "${strategy}": \n${printPackages}\n`)
+    }
 } else {
-    log.info(`No package registry specified, dumping permutations of strategy "${values.strategy}":`)
-    strategyPackages.forEach((pkg) => {
-        log.info(pkg)
-    })
+    log.info(`No package registry specified, dumping permutations of strategy "${values.strategy}":\n`)
+    for (const [strategy, strategyPackages] of Object.entries(allStrategyPackages)) {
+        const printPackages = strategyPackages.length ? strategyPackages.join('\n') : '-'
+        log.info(`Strategy ${strategy}: \n${printPackages}\n`)
+    }
 }

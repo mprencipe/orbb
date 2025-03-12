@@ -1,7 +1,7 @@
-import {getPackagesWithStrategy} from './index.js'
+import {getStrategy} from './index.js'
 
-describe('getPackagesWithStrategy', () => {
+describe('getStrategy', () => {
     it('should return null with unknown strategy', () => {
-        expect(getPackagesWithStrategy('foo')).toBeNull()
+        expect(getStrategy('foo')).toBeNull()
     })
 })
